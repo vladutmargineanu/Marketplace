@@ -23,17 +23,28 @@ class Marketplace:
         self.queue_size_per_producer = queue_size_per_producer
         self.id_producer = 0
         self.id_consumer = 0
+        # Dictionary for the producers
         self.producers_dictionary = {}
+        # Dictionary for the consumers carts
         self.carts_dictionary = {}
-        self.lock = Lock()
+        # Lock used when add product in cart
+        self.lock_add_cart = Lock()
+        # Lock used when publish product in marketplace
+        self.lock_publish = Lock()
+    
+    # Each carts need to have a list for store the product
+    def initialize_cart(self):
+        self.carts_dictionary[self.id_consumer] = []
+
+    # Each producer need to have a list to store products
+    def initialize_producer(self):
+        self.producers_dictionary[self.id_producer] = []
 
     def register_producer(self):
-
         # Returns an id for the producer that calls this.
         self.id_producer = self.id_producer + 1
-        
         # Initialize every producer with an empty list
-        self.producers_dictionary[self.id_producer] = []
+        self.initialize_producer()
         
         return self.id_producer
 
@@ -49,13 +60,21 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again.
         """
+        # Just a single producer can publish an product in a time
+        self.lock_publish.acquire()
+        # Get the list of product for the id producer
         producers_list = self.producers_dictionary.get(producer_id)
-
-        if len(producers_list) < self.queue_size_per_producer:
+        is_space = False
+        # Verify if the len for the producer queue
+        length_prod = len(producers_list)
+        if length_prod < self.queue_size_per_producer:
             self.producers_dictionary.get(producer_id).append(product)
-            return True
-        else:
-            return False
+            is_space = True
+            # Free the lock for the producer id
+            self.lock_publish.release()
+            return is_space
+
+        return False
 
     def new_cart(self):
         """
@@ -65,7 +84,7 @@ class Marketplace:
         """
         self.id_consumer = self.id_consumer + 1
         # Initialize an cart for the consumer
-        self.carts_dictionary[self.id_consumer] = []
+        self.initialize_cart()
 
         return self.id_consumer
 
@@ -84,25 +103,25 @@ class Marketplace:
         # Find producer id wich have the product
         find_id_prod = None
         find_product = False
+        # Just a single consumer can add product in a time
+        self.lock_add_cart.acquire()
 
-        self.lock.acquire()
-
-        # iterate in list of list of producers
+        # Iterate in list of list of producers
         for key in list(self.producers_dictionary.keys()):
             for prod in self.producers_dictionary.get(key):
-                # if the product is available for consumer
+                # If the product is available for consumer
                 if prod == product:
                     find_id_prod = key
                     find_product = True
                     break
 
         if find_product == True:
-            # remove product from producer with id
+            # Remove product from producer with id
             self.producers_dictionary.get(find_id_prod).remove(product)
-            # add product in cart 
-            self.carts_dictionary.get(cart_id).append((product, find_id_prod))
-        
-        self.lock.release()
+            # Add product in cart 
+            self.carts_dictionary.get(cart_id).append([product, find_id_prod])
+        # Free the lock for the consumer 
+        self.lock_add_cart.release()
 
         return find_product
 
@@ -116,19 +135,19 @@ class Marketplace:
         :type product: Product
         :param product: the product to remove from cart
         """
-        # take the list of products with id from carts dictionary
+        # Take the list of products with id from carts dictionary
         list_product = self.carts_dictionary.get(cart_id)
         find_id_prod= None
-        # iterate in the list to find the id for producer
+        # Iterate in the list to find the id for producer
         for prod, id_prod in list_product:
             if prod == product:
                 find_id_prod = id_prod
                 break
-        # remove product from cart
-        list_product.remove((product, find_id_prod))
+        # Remove product from cart
+        list_product.remove([product, find_id_prod])
         self.carts_dictionary[cart_id] = list_product
 
-        # add back the product to the list of producer
+        # Add back the product to the list of producer
         self.producers_dictionary.get(find_id_prod).append(product)
 
     def place_order(self, cart_id):
@@ -138,9 +157,9 @@ class Marketplace:
         :type cart_id: Int
         :param cart_id: id cart
         """
-        # list with the product to order
+        # List with the product to order
         list_order = []
-        # list of tuples from cart with id
+        # List of tuples from cart with id
         list_product = self.carts_dictionary.get(cart_id)
         for prod, id_prod in list_product:
             list_order.append(prod)

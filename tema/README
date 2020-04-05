@@ -1,0 +1,73 @@
+ Nume: Margineanu Nicolae-Vladut
+ Grupă: 333CA
+
+ Tema 1 - Marketplace
+
+  1. Organizare
+
+  Explicație pentru structura creată (sau soluția de ansamblu aleasă):
+  In rezolvarea temei, am ales sa folosesc structurile de date: dictionare
+ si liste care sunt thread safe. In sectiunea critica din functia add_to_cart
+ am folosit elemente de sincronizare Lock, pentru a avea acces exclusiv la
+ portiunea de cod protejata de lock. In sectiunea critica din functia publish,
+ am folosit de asemenea ca element de sincronizare Lock-ul. Lungimea
+ dictionarului se putea modifica in timpul iteratiei din aceste doua functii
+ de mai multe thread-uri, asa ca am folosit ca element de sincronizare Lock-ul
+ (un singur thread poate accesa zona protejata de lock la un moment dat).
+
+  Solutia de ansamblu: Am folosit doua dictionare, unul pentru producatori, iar
+ unul pentru cosurile de cumparaturi. Dictionarul pentru producatori are ca si
+ cheie, id-ul producatorului respectiv, iar ca valoare are o lista de produse
+ (formata din id-urile respectivelor produse). Dictionarul pentru cosurile de
+ cumparaturi - carts reprezinta cheia = id-ul unui consumator, valoarea = o
+ lista de liste, astfel, listele interioare reprezinta o pereche de doua
+ elemente cu produsul si id-ul producatorului care la creat.
+
+ Dictionar carts => {id1:[[product1, id_producer1], [product2, id_producer2]],
+		    id2:[[product3, id_producer3], [product4, id_producer4]}
+
+ Dicitionar producers => {id1:[prod1, prod2, prod3], id2:[prod4, prod5, prod6]}
+
+ Operatiile executate pe dictionare si liste au fost de adaugare si stergere,
+ care sunt thread safe:
+ list.append()
+ list.remove()
+ dict[x] = y
+ dict.keys()
+
+  In metoda run din producers.py se genereaza un id pentru producator, dupa care
+ parcurgem lista de produse pe care trebuie sa le publicam. Cu ajutorul
+ functiei publish_product, verific intr-o structura while daca se publica
+ cantitatea dorita de produse, altfel astept timpul pentru a reincerca din nou.
+ In aceasta functie apelez functia publish din marketplace care este protejata
+ cu ajutorul elementelor de sincronizare Lock(). 
+  In metoda run din consumers.py se genereaza un id pentru un cos de
+ cumparaturi, dupa care se itereaza prin lista carts cu comenzi de add si
+ remove. Lista carts este o lista de liste, in care, listele interioare contin
+ elemente dictionare. Dictionarele dintr-o lista interioara, listei carts,
+ contin fiecare trei elemente de tipul (type, product, quantity). Astfel, 
+ verificam ce comanda trebuie sa aplicam. In cazul in care type este add,
+ apelam functia add_cart care apeleaza functia add_to_cart din marketplace
+ de quantity ori pentru a adauga in cosul cu id ul generat in run, un produs
+ product din dictionar. In cazul in care type este remove, apelam functia
+ remove_cart care apeleza functia remove_from_cart din marketplace de quantity
+ ori pentru a sterge din cosul de cumparaturi cu id ul generat in run,
+ produsul product din dictionar.
+ In finalul metodei run, apelam functia print_carts care afiseaza o lista de
+ produse din cosul de cumparaturi cu id ul generat la inceputul metodei run.
+
+  2. Implementare
+
+  Intregul enunt a fost implementat. Programul trece toate testele.
+  Pe parcursul temei am intampinat urmatoarele probleme:
+ - Nu foloseam elemente de sincronizare, iar in metodele de
+ add si publish primeam exceptii deoarece se modifica dimensiunea dictionarului
+ pe parcursul iteratiilor.
+
+  3. Bibliografie
+ - Laboratorul 1, 2 si 3 ASC
+ [https://ocw.cs.pub.ro/courses/asc/laboratoare/01]
+ [https://ocw.cs.pub.ro/courses/asc/laboratoare/02]
+ [https://ocw.cs.pub.ro/courses/asc/laboratoare/03]
+
+
